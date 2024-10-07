@@ -2,479 +2,118 @@ from fasthtml.common import *
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
-# Load environment variables
+# 환경 변수 로드
 load_dotenv()
 
-# Initialize the chat model
+# 챗 모델 초기화
 chat_model = ChatOpenAI()
 
-# # Create the FastHTML app
-app = FastHTML(hdrs=(picolink))
-
+# FastHTML 앱 생성
+app = FastHTML(hdrs=("pico",))
 
 # 공통 네비게이션 바 생성
 def create_nav():
     return Nav(
-        Ul(
-            Li(A(Button("Home", cls="primary"), href="/")),
-            Li(A(Button("Preview", cls="secondary"), href="/preview")),
-            Li(A(Button("Typography", cls="contrast"), href="/typography")),
-            Li(A(Button("Buttons", cls="outline"), href="/buttons")),
-            Li(A(Button("Form Elements", cls="outline secondary"), href="/form")),
-            Li(A(Button("Tables", cls="outline contrast"), href="/tables")),
-            Li(A(Button("Modal", cls="primary"), href="/modal")),
-            Li(A(Button("Accordions", cls="secondary"), href="/accordions")),
-            Li(A(Button("Article", cls="contrast"), href="/article")),
-            Li(A(Button("Group", cls="outline"), href="/group")),
-            Li(A(Button("Progress", cls="outline secondary"), href="/progress")),
-            Li(A(Button("Loading", cls="outline contrast"), href="/loading")),
-            cls="menu"
-        ),
-        cls="container"
+        Div(
+            # 로고 부분 추가
+            Div(
+                H1("QuizGen", cls="logo"),
+                cls="brand"
+            ),
+            # 네비게이션 링크 및 검색 바 추가
+            Ul(
+                Li(A("강의계획서", href="/course-plan")),
+                Li(A("강의계획서 목록", href="/course-plan/list")),
+                Li(A("키워드 입력", href="/")),
+                Li(A("텍스트 입력", href="/text")),
+                Li(A("PDF 업로드", href="/pdf")),
+                Li(A("URL 입력", href="/url")),
+                Li(A("유튜브 링크", href="/youtube")),
+                Li(A("비디오 업로드", href="/video")),
+                cls="navigation-links"
+            ),
+            # 검색 바 추가
+            Form(
+                Input(type="search", placeholder="Search...", name="search"),
+                Button("검색", type="submit"),
+                cls="search-bar"
+            ),
+            cls="container-fluid"  # 네비게이션 바를 전체 너비로 확장
+        )
     )
-
-
 
 
 # 공통 헤더 생성
-def create_header():
+def create_header(description):
     return Header(
+        create_nav(),  # 네비게이션 바를 가장 위로 배치
         Div(
-            H1("Pico"),
-            P("A pure HTML example, without dependencies."),
+            P(description),  # 동적으로 변경 가능한 설명 문구
             cls="container"
         ),
-        create_nav(),
         cls="container"
     )
+
 
 # 공통 푸터 생성
 def create_footer():
     return Footer(
-        P(Small(
-            "Built with ", A("Pico", href="https://picocss.com"), " • ",
-            A("Source code", href="https://github.com/picocss/examples/blob/master/v2-html/index.html")
-        )),
+        P(Small("© 2024. QuizGen. All rights reserved.")),
         cls="container"
     )
 
-# 메인 페이지
+# 메인 페이지 (키워드 입력)
 @app.get("/")
 def home():
     return Html(
         Head(
-            Title("Home • Pico CSS"),
+            Title("QuizGen • 키워드 입력"),
             Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
         ),
         Body(
-            create_header(),
+            create_header("키워드를 입력 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
             Main(
                 Section(
-                    H2("Welcome to the PicoCSS Example"),
-                    P("Use the navigation bar to explore different components."),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# Preview 페이지
-@app.get("/preview")
-def preview():
-    return Html(
-        Head(
-            Title("Preview • Pico CSS"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header(),
-            Main(
-                Section(
-                    H2("Preview"),
-                    P("Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien."),
+                    H2("키워드를 입력해 주세요"),
                     Form(
-                        Div(
-                            Input(type="text", name="firstname", placeholder="First name", required=True),
-                            Input(type="email", name="email", placeholder="Email address", required=True),
-                            Button("Subscribe", type="submit"),
-                            cls="grid"
-                        ),
-                        Fieldset(
-                            Label(
-                                Input(type="checkbox", role="switch", id="terms", name="terms"),
-                                "I agree to the ",
-                                A("Privacy Policy", href="#", onclick="event.preventDefault()")
-                            )
-                        )
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# Typography 페이지
-@app.get("/typography")
-def typography():
-    return Html(
-        Head(
-            Title("Typography • Pico CSS"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header(),
-            Main(
-                Section(
-                    H2("Typography"),
-                    P("Aliquam lobortis vitae nibh nec rhoncus. Morbi mattis neque eget efficitur feugiat."),
-                    Blockquote(
-                        "Maecenas vehicula metus tellus, vitae congue turpis hendrerit non. Nam at dui sit amet ipsum cursus ornare.",
-                        Footer(Cite("- Phasellus eget lacinia"))
-                    ),
-                    H3("Lists"),
-                    Ul(
-                        Li("Aliquam lobortis lacus eu libero ornare facilisis."),
-                        Li("Nam et magna at libero scelerisque egestas."),
-                        Li("Suspendisse id nisl ut leo finibus vehicula quis eu ex."),
-                        Li("Proin ultricies turpis et volutpat vehicula.")
-                    ),
-                    H3("Inline text elements"),
-                    Div(
-                        P(A("Primary link", href="#", onclick="event.preventDefault()")),
-                        P(A("Secondary link", href="#", onclick="event.preventDefault()", cls="secondary")),
-                        P(A("Contrast link", href="#", onclick="event.preventDefault()", cls="contrast")),
-                        cls="grid"
-                    ),
-                    Div(
-                        P(Strong("Bold")),
-                        P(Em("Italic")),
-                        P(U("Underline")),
-                        cls="grid"
-                    ),
-                    Div(
-                        P(Del("Deleted")),
-                        P(Ins("Inserted")),
-                        P(S("Strikethrough")),
-                        cls="grid"
-                    ),
-                    Div(
-                        P(Small("Small")),
-                        P("Text ", Sub("Sub")),
-                        P("Text ", Sup("Sup")),
-                        cls="grid"
-                    ),
-                    Div(
-                        P(Abbr("Abbr.", title="Abbreviation", data_tooltip="Abbreviation")),
-                        P(Kbd("Kbd")),
-                        P(Mark("Highlighted")),
-                        cls="grid"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# Buttons 페이지
-@app.get("/buttons")
-def buttons():
-    return Html(
-        Head(
-            Title("Buttons • Pico CSS"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header(),
-            Main(
-                Section(
-                    H2("Buttons"),
-                    P(
-                        Button("Primary"),
-                        Button("Secondary", cls="secondary"),
-                        Button("Contrast", cls="contrast"),
-                        cls="grid"
-                    ),
-                    P(
-                        Button("Primary outline", cls="outline"),
-                        Button("Secondary outline", cls="outline secondary"),
-                        Button("Contrast outline", cls="outline contrast"),
-                        cls="grid"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# Form Elements 페이지
-@app.get("/form")
-def form_elements():
-    return Html(
-        Head(
-            Title("Form Elements • Pico CSS"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header(),
-            Main(
-                Section(
-                    H2("Form elements"),
-                    Form(
-                        Label("Search", Input(type="search", id="search", name="search", placeholder="Search")),
-                        Label("Text", Input(type="text", id="text", name="text", placeholder="Text")),
-                        Small("Curabitur consequat lacus at lacus porta finibus."),
-                        Label("Select", Select(
-                            Option("Select…", value="", selected=True),
-                            Option("…")
+                        Label("키워드를 입력해 주십시오. 예) 인공지능", Textarea(placeholder="예) 인공지능", rows="2")),
+                        Label("서브 키워드를 선택하세요:", Select(
+                            Option("Choose an option", value="", selected=True),
+                            Option("인공지능"),
+                            Option("컴퓨터 비전"),
+                            Option("자연어 처리")
                         )),
-                        Label("File browser", Input(type="file", id="file", name="file")),
-                        Label("Range slider", Input(type="range", min="0", max="100", value="50", id="range", name="range")),
-                        Div(
-                            Label("Valid", Input(type="text", id="valid", name="valid", placeholder="Valid", aria_invalid="false")),
-                            Label("Invalid", Input(type="text", id="invalid", name="invalid", placeholder="Invalid", aria_invalid="true")),
-                            Label("Disabled", Input(type="text", id="disabled", name="disabled", placeholder="Disabled", disabled=True)),
-                            cls="grid"
-                        ),
-                        Div(
-                            Label("Date", Input(type="date", id="date", name="date")),
-                            Label("Time", Input(type="time", id="time", name="time")),
-                            Label("Color", Input(type="color", id="color", name="color", value="#0eaaaa")),
-                            cls="grid"
-                        ),
-                        Div(
+                        Div(  # 언어, 종류 선택, 난이도, LLM을 가로로 정렬
                             Fieldset(
-                                Legend(Strong("Checkboxes")),
-                                Label("Checkbox", Input(type="checkbox", id="checkbox-1", name="checkbox-1", checked=True)),
-                                Label("Checkbox", Input(type="checkbox", id="checkbox-2", name="checkbox-2"))
+                                Legend("언어 선택"),
+                                Label("한국어", Input(type="radio", name="language", value="korean", checked=True)),
+                                Label("English", Input(type="radio", name="language", value="english"))
                             ),
                             Fieldset(
-                                Legend(Strong("Radio buttons")),
-                                Label("Radio button", Input(type="radio", id="radio-1", name="radio", value="radio-1", checked=True)),
-                                Label("Radio button", Input(type="radio", id="radio-2", name="radio", value="radio-2"))
+                                Legend("종류 선택"),
+                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
+                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
+                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
+                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
                             ),
                             Fieldset(
-                                Legend(Strong("Switches")),
-                                Label("Switch", Input(type="checkbox", id="switch-1", name="switch-1", role="switch", checked=True)),
-                                Label("Switch", Input(type="checkbox", id="switch-2", name="switch-2", role="switch"))
+                                Legend("난이도"),
+                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
+                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
+                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
                             ),
-                            cls="grid"
-                        ),
-                        Div(
-                            Input(type="reset", value="Reset", onclick="event.preventDefault()"),
-                            Input(type="submit", value="Submit", onclick="event.preventDefault()"),
-                            cls="grid"
-                        )
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# Tables 페이지
-@app.get("/tables")
-def tables():
-    return Html(
-        Head(
-            Title("Tables • Pico CSS"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header(),
-            Main(
-                Section(
-                    H2("Tables"),
-                    Div(
-                        Table(
-                            Thead(
-                                Tr(
-                                    Th("#", scope="col"),
-                                    Th("Heading", scope="col"),
-                                    Th("Heading", scope="col"),
-                                    Th("Heading", scope="col"),
-                                    Th("Heading", scope="col"),
-                                    Th("Heading", scope="col"),
-                                    Th("Heading", scope="col"),
-                                    Th("Heading", scope="col")
-                                )
+                            Fieldset(
+                                Legend("LLM"),
+                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
+                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
+                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
+                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
                             ),
-                            Tbody(
-                                Tr(
-                                    Th("1", scope="row"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell")
-                                ),
-                                Tr(
-                                    Th("2", scope="row"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell")
-                                ),
-                                Tr(
-                                    Th("3", scope="row"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell"),
-                                    Td("Cell")
-                                )
-                            ),
-                            cls="striped"
+                            cls="grid"  # 가로로 배치
                         ),
-                        cls="overflow-auto"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# Modal 페이지
-@app.get("/modal")
-def modal():
-    return Html(
-        Head(
-            Title("Modal • Pico CSS"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header(),
-            Main(
-                Section(
-                    H2("Modal"),
-                    Button(
-                        "Launch demo modal", 
-                        cls="contrast", 
-                        data_target="modal-example", 
-                        onclick="toggleModal(event)"
-                    ),
-                    Dialog(
-                        Article(
-                            Header(
-                                Button(
-                                    aria_label="Close", 
-                                    rel="prev", 
-                                    data_target="modal-example", 
-                                    onclick="toggleModal(event)"
-                                ),
-                                H3("Confirm your action!")
-                            ),
-                            P("Cras sit amet maximus risus. Pellentesque sodales odio sit amet augue finibus pellentesque."),
-                            Footer(
-                                Button("Cancel", role="button", cls="secondary", data_target="modal-example", onclick="toggleModal(event)"),
-                                Button("Confirm", autofocus=True, data_target="modal-example", onclick="toggleModal(event)")
-                            )
-                        ),
-                        id="modal-example"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# Accordions 페이지
-@app.get("/accordions")
-def accordions():
-    return Html(
-        Head(
-            Title("Accordions • Pico CSS"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header(),
-            Main(
-                Section(
-                    H2("Accordions"),
-                    Details(
-                        Summary("Accordion 1"),
-                        P("Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
-                    ),
-                    Details(
-                        Summary("Accordion 2"),
-                        Ul(
-                            Li("Vestibulum id elit quis massa interdum sodales."),
-                            Li("Nunc quis eros vel odio pretium tincidunt nec quis neque."),
-                            Li("Quisque sed eros non eros ornare elementum."),
-                            Li("Cras sed libero aliquet, porta dolor quis, dapibus ipsum.")
-                        ),
-                        open=True
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# Article 페이지
-@app.get("/article")
-def article():
-    return Html(
-        Head(
-            Title("Article • Pico CSS"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header(),
-            Main(
-                Article(
-                    H2("Article"),
-                    P("Nullam dui arcu, malesuada et sodales eu, efficitur vitae dolor."),
-                    Footer(Small("Duis nec elit placerat, suscipit nibh quis, finibus neque.")),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# Group 페이지
-@app.get("/group")
-def group():
-    return Html(
-        Head(
-            Title("Group • Pico CSS"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header(),
-            Main(
-                Section(
-                    H2("Group"),
-                    Form(
-                        Fieldset(
-                            Input(type="email", name="email", placeholder="Enter your email", autocomplete="email"),
-                            Input(type="submit", value="Subscribe"),
-                            role="group"
-                        ),
+                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
+                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="요구사항을 입력하세요...")),
+                        Button("퀴즈 생성", type="submit"),
                         cls="container"
                     ),
                     cls="container"
@@ -485,21 +124,27 @@ def group():
         )
     )
 
-# Progress 페이지
-@app.get("/progress")
-def progress():
+
+# 강의계획서 목록 페이지
+@app.get("/course-plan/list")
+def course_plan_list():
     return Html(
         Head(
-            Title("Progress • Pico CSS"),
+            Title("강의계획서 목록 • QuizGen"),
             Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
         ),
         Body(
-            create_header(),
+            create_header("강의계획서."),  # 설명 문구 전달
             Main(
                 Section(
-                    H2("Progress bar"),
-                    Progress(id="progress-1", value="25", max="100"),
-                    Progress(id="progress-2"),
+                    H2("강의계획서 목록"),
+                    P("강의계획서를 선택하세요."),
+                    Ul(
+                        Li(A("강의계획서 1", href="/course-plan/1")),
+                        Li(A("강의계획서 2", href="/course-plan/2")),
+                        Li(A("강의계획서 3", href="/course-plan/3")),
+                        cls="container"
+                    ),
                     cls="container"
                 ),
                 cls="container"
@@ -508,21 +153,21 @@ def progress():
         )
     )
 
-# Loading 페이지
-@app.get("/loading")
-def loading():
+# 개별 강의계획서 페이지
+@app.get("/course-plan/{id}")
+def course_plan(id: str):
     return Html(
         Head(
-            Title("Loading • Pico CSS"),
+            Title(f"강의계획서 {id} • QuizGen"),
             Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
         ),
         Body(
-            create_header(),
+            create_header("강의계획서"),  # 설명 문구 전달
             Main(
                 Section(
-                    H2("Loading"),
-                    Article(aria_busy="true"),
-                    Button("Please wait…", aria_busy="true"),
+                    H2(f"강의계획서 {id}"),
+                    Textarea(placeholder=f"강의계획서 {id} 내용을 입력하세요.", rows="10"),
+                    Button("수정", type="submit", cls="primary"),
                     cls="container"
                 ),
                 cls="container"
@@ -530,6 +175,352 @@ def loading():
             create_footer()
         )
     )
+
+# 텍스트 입력 페이지
+@app.get("/text")
+def text_input():
+    return Html(
+        Head(
+            Title("텍스트 입력 • QuizGen"),
+            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
+        ),
+        Body(
+            create_header("text를 입력 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
+            Main(
+                Section(
+                    H2("텍스트를 입력해 주세요"),
+                    Form(
+                        Label("텍스트(긴 글) 입력란", Textarea(placeholder="예) 인공지능이란....", rows="5")),
+                        Div(
+                            Div(
+                                H3("기본 입력"),
+                                Button("기본 입력"),
+                                Button("내용 확인"),
+                                cls="container"
+                            ),
+                            Div(
+                                H3("키워드 추출"),
+                                Button("키워드 추출"),
+                                cls="container"
+                            ),
+                            cls="grid"
+                        ),
+                        Div(
+                            Fieldset(
+                                Legend("언어 선택"),
+                                Label("Korean", Input(type="radio", name="language", value="korean", checked=True)),
+                                Label("English", Input(type="radio", name="language", value="english"))
+                            ),
+                            Fieldset(
+                                Legend("종류 선택"),
+                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
+                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
+                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
+                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
+                            ),
+                            Fieldset(
+                                Legend("난이도"),
+                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
+                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
+                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
+                            ),
+                            Fieldset(
+                                Legend("LLM"),
+                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
+                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
+                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
+                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
+                            ),
+                            cls="grid",
+                            style="margin-top: 30px;"  # 여백 추가
+
+    
+                        ),
+                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
+                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="문제를 한국어로 생성해 주세요.")),
+                        Button("퀴즈 생성", type="submit"),
+                        cls="container"
+                    ),
+                    cls="container"
+                ),
+                cls="container"
+            ),
+            create_footer()
+        )
+    )
+
+
+# PDF 업로드 페이지
+@app.get("/pdf")
+def pdf_upload():
+    return Html(
+        Head(
+            Title("PDF 업로드 • QuizGen"),
+            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
+        ),
+        Body(
+            create_header("pdf를 업로드 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
+            Main(
+                Section(
+                    H2("PDF 파일 업로드"),
+                    Form(
+                        Label("Drag and drop file here", Input(type="file", accept=".pdf")),
+                        Div(
+                            Div(
+                                H3("기본 입력"),
+                                Button("기본 입력"),
+                                Button("내용 확인"),
+                                cls="container"
+                            ),
+                            cls="grid"
+                        ),
+                        Div(
+                            Fieldset(
+                                Legend("언어 선택"),
+                                Label("Korean", Input(type="radio", name="language", value="korean", checked=True)),
+                                Label("English", Input(type="radio", name="language", value="english"))
+                            ),
+                            Fieldset(
+                                Legend("종류 선택"),
+                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
+                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
+                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
+                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
+                            ),
+                            Fieldset(
+                                Legend("난이도"),
+                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
+                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
+                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
+                            ),
+                            Fieldset(
+                                Legend("LLM"),
+                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
+                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
+                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
+                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
+                            ),
+                            cls="grid",
+                            style="margin-top: 30px;"  # 여백 추가
+                        ),
+
+
+                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
+                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="문제를 한국어로 생성해 주세요.")),
+                        Button("퀴즈 생성", type="submit"),
+                        cls="container"
+                    ),
+                    cls="container"
+                ),
+                cls="container"
+            ),
+            create_footer()
+        )
+    )
+
+
+# URL 입력 페이지
+@app.get("/url")
+def url_input():
+    return Html(
+        Head(
+            Title("URL 입력 • QuizGen"),
+            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
+        ),
+        Body(
+            create_header("url 를 입력 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
+            Main(
+                Section(
+                    H2("URL 입력"),
+                    Form(
+                        Label("URL 입력란 (예: https://ko.wikipedia.org/wiki/)", Input(type="url", placeholder="https://")),
+                        Div(
+                            Div(
+                                H3("기본 입력"),
+                                Button("기본 입력"),
+                                Button("내용 확인"),
+                                cls="container"
+                            ),
+                            cls="grid"
+                        ),
+                        Div(
+                            Fieldset(
+                                Legend("언어 선택"),
+                                Label("Korean", Input(type="radio", name="language", value="korean", checked=True)),
+                                Label("English", Input(type="radio", name="language", value="english"))
+                            ),
+                            Fieldset(
+                                Legend("종류 선택"),
+                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
+                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
+                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
+                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
+                            ),
+                            Fieldset(
+                                Legend("난이도"),
+                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
+                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
+                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
+                            ),
+                            Fieldset(
+                                Legend("LLM"),
+                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
+                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
+                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
+                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
+                            ),
+                            cls="grid",
+                            style="margin-top: 30px;"  # 여백 추가
+                        ),
+
+                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
+                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="문제를 한국어로 생성해 주세요.")),
+                        Button("퀴즈 생성", type="submit"),
+                        cls="container"
+                    ),
+                    cls="container"
+                ),
+                cls="container"
+            ),
+            create_footer()
+        )
+    )
+
+
+# 유튜브 링크 입력 페이지
+@app.get("/youtube")
+def youtube_input():
+    return Html(
+        Head(
+            Title("유튜브 링크 입력 • QuizGen"),
+            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
+        ),
+        Body(
+            create_header("youtube 링크를 입력 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
+            Main(
+                Section(
+                    H2("유튜브 주소 입력 후 원하는 문제를 선택하여 주십시오."),
+                    Form(
+                        Label("유튜브 URL 입력란 (예: https://youtu.be/)", Input(type="url", placeholder="https://youtu.be/")),
+                        Div(
+                            Div(
+                                H3("기본 입력"),
+                                Button("기본 입력"),
+                                Button("내용 확인"),
+                                cls="container"
+                            ),
+                            cls="grid"
+                        ),
+                        Div(
+                            Fieldset(
+                                Legend("언어 선택"),
+                                Label("Korean", Input(type="radio", name="language", value="korean", checked=True)),
+                                Label("English", Input(type="radio", name="language", value="english"))
+                            ),
+                            Fieldset(
+                                Legend("종류 선택"),
+                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
+                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
+                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
+                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
+                            ),
+                            Fieldset(
+                                Legend("난이도"),
+                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
+                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
+                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
+                            ),
+                            Fieldset(
+                                Legend("LLM"),
+                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
+                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
+                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
+                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
+                            ),
+                            cls="grid",
+                            style="margin-top: 30px;"  # 여백 추가
+                        ),
+
+                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
+                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="문제를 한국어로 생성해 주세요.")),
+                        Button("퀴즈 생성", type="submit"),
+                        cls="container"
+                    ),
+                    cls="container"
+                ),
+                cls="container"
+            ),
+            create_footer()
+        )
+    )
+
+
+# 비디오 업로드 페이지
+@app.get("/video")
+def video_upload():
+    return Html(
+        Head(
+            Title("비디오 업로드 • QuizGen"),
+            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
+        ),
+        Body(
+            create_header("video를 업로드 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
+            Main(
+                Section(
+                    H2("비디오 파일을 업로드해 주세요."),
+                    Form(
+                        Label("Drag and drop file here", Input(type="file", accept="video/*")),      
+                        Div(
+                            Div(
+                                H3("기본 입력"),
+                                Button("기본 입력"),
+                                Button("내용 확인"),
+                                cls="container"
+                            ),
+                            cls="grid"
+                        ),
+                        Div(
+                            Fieldset(
+                                Legend("언어 선택"),
+                                Label("Korean", Input(type="radio", name="language", value="korean", checked=True)),
+                                Label("English", Input(type="radio", name="language", value="english"))
+                            ),
+                            Fieldset(
+                                Legend("종류 선택"),
+                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
+                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
+                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
+                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
+                            ),
+                            Fieldset(
+                                Legend("난이도"),
+                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
+                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
+                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
+                            ),
+                            Fieldset(
+                                Legend("LLM"),
+                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
+                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
+                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
+                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
+                            ),
+                            cls="grid",
+                            style="margin-top: 30px;"  # 여백 추가
+                        ),
+                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
+                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="문제를 한국어로 생성해 주세요.")),
+                        Button("퀴즈 생성", type="submit"),
+                        cls="container"
+                    ),
+                    cls="container"
+                ),
+                cls="container"
+            ),
+            create_footer()
+        )
+    )
+
 
 # 서버 실행
 serve()
