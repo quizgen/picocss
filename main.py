@@ -2,11 +2,11 @@ from fasthtml.common import *
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
-# 환경 변수 로드
-load_dotenv()
+# # 환경 변수 로드
+# load_dotenv()
 
-# 챗 모델 초기화
-chat_model = ChatOpenAI()
+# # 챗 모델 초기화
+# chat_model = ChatOpenAI()
 
 # FastHTML 앱 생성
 app = FastHTML(hdrs=("pico",))
