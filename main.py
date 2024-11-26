@@ -1,526 +1,91 @@
+from fastcore.parallel import threaded
 from fasthtml.common import *
+import uuid, os, uvicorn, requests, replicate
+from PIL import Image
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-
-# # 환경 변수 로드
-# load_dotenv()
-
-# # 챗 모델 초기화
-# chat_model = ChatOpenAI()
-
-# FastHTML 앱 생성
-app = FastHTML(hdrs=("pico",))
-
-# 공통 네비게이션 바 생성
-def create_nav():
-    return Nav(
-        Div(
-            # 로고 부분 추가
-            Div(
-                H1("QuizGen", cls="logo"),
-                cls="brand"
-            ),
-            # 네비게이션 링크 및 검색 바 추가
-            Ul(
-                Li(A("강의계획서", href="/course-plan")),
-                Li(A("강의계획서 목록", href="/course-plan/list")),
-                Li(A("키워드 입력", href="/")),
-                Li(A("텍스트 입력", href="/text")),
-                Li(A("PDF 업로드", href="/pdf")),
-                Li(A("URL 입력", href="/url")),
-                Li(A("유튜브 링크", href="/youtube")),
-                Li(A("비디오 업로드", href="/video")),
-                cls="navigation-links"
-            ),
-            # 검색 바 추가
-            Form(
-                Input(type="search", placeholder="Search...", name="search"),
-                Button("검색", type="submit"),
-                cls="search-bar"
-            ),
-            cls="container-fluid"  # 네비게이션 바를 전체 너비로 확장
-        )
-    )
 
 
-# 공통 헤더 생성
-def create_header(description):
-    return Header(
-        create_nav(),  # 네비게이션 바를 가장 위로 배치
-        Div(
-            P(description),  # 동적으로 변경 가능한 설명 문구
-            cls="container"
-        ),
-        cls="container"
-    )
+load_dotenv()
 
 
-# 공통 푸터 생성
-def create_footer():
-    return Footer(
-        P(Small("© 2024. QuizGen. All rights reserved.")),
-        cls="container"
-    )
+# Replicate setup (for generating images)
+replicate_api_token = os.environ['REPLICATE_API_KEY']
+client = replicate.Client(api_token=replicate_api_token)  
 
-# 메인 페이지 (키워드 입력)
+# gens database for storing generated image details
+tables = database('data/gens.db').t
+gens = tables.gens
+if not gens in tables:
+    gens.create(prompt=str, id=int, folder=str, pk='id')
+Generation = gens.dataclass()
+
+
+# Flexbox CSS (http://flexboxgrid.com/)
+gridlink = Link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/flexboxgrid/6.3.1/flexboxgrid.min.css", type="text/css")
+
+# Our FastHTML app
+app = FastHTML(hdrs=(picolink, gridlink))
+
+# Main page
 @app.get("/")
 def home():
-    return Html(
-        Head(
-            Title("QuizGen • 키워드 입력"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header("키워드를 입력 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
-            Main(
-                Section(
-                    H2("키워드를 입력해 주세요"),
-                    Form(
-                        Label("키워드를 입력해 주십시오. 예) 인공지능", Textarea(placeholder="예) 인공지능", rows="2")),
-                        Label("서브 키워드를 선택하세요:", Select(
-                            Option("Choose an option", value="", selected=True),
-                            Option("인공지능"),
-                            Option("컴퓨터 비전"),
-                            Option("자연어 처리")
-                        )),
-                        Div(  # 언어, 종류 선택, 난이도, LLM을 가로로 정렬
-                            Fieldset(
-                                Legend("언어 선택"),
-                                Label("한국어", Input(type="radio", name="language", value="korean", checked=True)),
-                                Label("English", Input(type="radio", name="language", value="english"))
-                            ),
-                            Fieldset(
-                                Legend("종류 선택"),
-                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
-                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
-                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
-                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
-                            ),
-                            Fieldset(
-                                Legend("난이도"),
-                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
-                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
-                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
-                            ),
-                            Fieldset(
-                                Legend("LLM"),
-                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
-                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
-                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
-                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
-                            ),
-                            cls="grid"  # 가로로 배치
-                        ),
-                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
-                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="요구사항을 입력하세요...")),
-                        Button("퀴즈 생성", type="submit"),
-                        cls="container"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
+    inp = Input(id="new-prompt", name="prompt", placeholder="Enter a prompt")
+    add = Form(Group(inp, Button("Generate")), hx_post="/", target_id='gen-list', hx_swap="afterbegin")
+    gen_containers = [generation_preview(g) for g in gens(limit=10)] # Start with last 10
+    gen_list = Div(*reversed(gen_containers), id='gen-list', cls="row") # flexbox container: class = row
+    return Title('Image Generation Demo'), Main(H1('Magic Image Generation'), add, gen_list, cls='container')
+
+# Show the image (if available) and prompt for a generation
+def generation_preview(g):
+    grid_cls = "box col-xs-12 col-sm-6 col-md-4 col-lg-3"
+    image_path = f"{g.folder}/{g.id}.png"
+    if os.path.exists(image_path):
+        return Div(Card(
+                       Img(src=image_path, alt="Card image", cls="card-img-top"),
+                       Div(P(B("Prompt: "), g.prompt, cls="card-text"),cls="card-body"),
+                   ), id=f'gen-{g.id}', cls=grid_cls)
+    return Div(f"Generating gen {g.id} with prompt {g.prompt}", 
+            id=f'gen-{g.id}', hx_get=f"/gens/{g.id}", 
+            hx_trigger="every 2s", hx_swap="outerHTML", cls=grid_cls)
+
+# A pending preview keeps polling this route until we return the image preview
+@app.get("/gens/{id}")
+def preview(id:int):
+    return generation_preview(gens.get(id))
+
+# For images, CSS, etc.
+@app.get("/{fname:path}.{ext:static}")
+def static(fname:str, ext:str): return FileResponse(f'{fname}.{ext}')
+
+# Generation route
+@app.post("/")
+def post(prompt:str):
+    folder = f"data/gens/{str(uuid.uuid4())}"
+    os.makedirs(folder, exist_ok=True)
+    g = gens.insert(Generation(prompt=prompt, folder=folder))
+    generate_and_save(g.prompt, g.id, g.folder)
+    clear_input =  Input(id="new-prompt", name="prompt", placeholder="Enter a prompt", hx_swap_oob='true')
+    return generation_preview(g), clear_input
+
+# Generate an image and save it to the folder (in a separate thread)
+@threaded
+def generate_and_save(prompt, id, folder):
+    output = client.run(
+        "playgroundai/playground-v2.5-1024px-aesthetic:a45f82a1382bed5c7aeb861dac7c7d191b0fdf74d8d57c4a0e6ed7d4d0bf7d24",
+        input={
+            "width": 1024,
+            "height": 1024,
+            "prompt": "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
+            "scheduler": "DPMSolver++",
+            "num_outputs": 1,
+            "guidance_scale": 3,
+            "apply_watermark": True,
+            "negative_prompt": "ugly, deformed, noisy, blurry, distorted",
+            "prompt_strength": 0.8,
+            "num_inference_steps": 25
+        }
     )
+    Image.open(requests.get(output[0], stream=True).raw).save(f"{folder}/{id}.png")
+    return True
 
-
-# 강의계획서 목록 페이지
-@app.get("/course-plan/list")
-def course_plan_list():
-    return Html(
-        Head(
-            Title("강의계획서 목록 • QuizGen"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header("강의계획서."),  # 설명 문구 전달
-            Main(
-                Section(
-                    H2("강의계획서 목록"),
-                    P("강의계획서를 선택하세요."),
-                    Ul(
-                        Li(A("강의계획서 1", href="/course-plan/1")),
-                        Li(A("강의계획서 2", href="/course-plan/2")),
-                        Li(A("강의계획서 3", href="/course-plan/3")),
-                        cls="container"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# 개별 강의계획서 페이지
-@app.get("/course-plan/{id}")
-def course_plan(id: str):
-    return Html(
-        Head(
-            Title(f"강의계획서 {id} • QuizGen"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header("강의계획서"),  # 설명 문구 전달
-            Main(
-                Section(
-                    H2(f"강의계획서 {id}"),
-                    Textarea(placeholder=f"강의계획서 {id} 내용을 입력하세요.", rows="10"),
-                    Button("수정", type="submit", cls="primary"),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-# 텍스트 입력 페이지
-@app.get("/text")
-def text_input():
-    return Html(
-        Head(
-            Title("텍스트 입력 • QuizGen"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header("text를 입력 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
-            Main(
-                Section(
-                    H2("텍스트를 입력해 주세요"),
-                    Form(
-                        Label("텍스트(긴 글) 입력란", Textarea(placeholder="예) 인공지능이란....", rows="5")),
-                        Div(
-                            Div(
-                                H3("기본 입력"),
-                                Button("기본 입력"),
-                                Button("내용 확인"),
-                                cls="container"
-                            ),
-                            Div(
-                                H3("키워드 추출"),
-                                Button("키워드 추출"),
-                                cls="container"
-                            ),
-                            cls="grid"
-                        ),
-                        Div(
-                            Fieldset(
-                                Legend("언어 선택"),
-                                Label("Korean", Input(type="radio", name="language", value="korean", checked=True)),
-                                Label("English", Input(type="radio", name="language", value="english"))
-                            ),
-                            Fieldset(
-                                Legend("종류 선택"),
-                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
-                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
-                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
-                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
-                            ),
-                            Fieldset(
-                                Legend("난이도"),
-                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
-                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
-                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
-                            ),
-                            Fieldset(
-                                Legend("LLM"),
-                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
-                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
-                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
-                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
-                            ),
-                            cls="grid",
-                            style="margin-top: 30px;"  # 여백 추가
-
-    
-                        ),
-                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
-                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="문제를 한국어로 생성해 주세요.")),
-                        Button("퀴즈 생성", type="submit"),
-                        cls="container"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-
-# PDF 업로드 페이지
-@app.get("/pdf")
-def pdf_upload():
-    return Html(
-        Head(
-            Title("PDF 업로드 • QuizGen"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header("pdf를 업로드 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
-            Main(
-                Section(
-                    H2("PDF 파일 업로드"),
-                    Form(
-                        Label("Drag and drop file here", Input(type="file", accept=".pdf")),
-                        Div(
-                            Div(
-                                H3("기본 입력"),
-                                Button("기본 입력"),
-                                Button("내용 확인"),
-                                cls="container"
-                            ),
-                            cls="grid"
-                        ),
-                        Div(
-                            Fieldset(
-                                Legend("언어 선택"),
-                                Label("Korean", Input(type="radio", name="language", value="korean", checked=True)),
-                                Label("English", Input(type="radio", name="language", value="english"))
-                            ),
-                            Fieldset(
-                                Legend("종류 선택"),
-                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
-                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
-                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
-                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
-                            ),
-                            Fieldset(
-                                Legend("난이도"),
-                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
-                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
-                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
-                            ),
-                            Fieldset(
-                                Legend("LLM"),
-                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
-                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
-                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
-                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
-                            ),
-                            cls="grid",
-                            style="margin-top: 30px;"  # 여백 추가
-                        ),
-
-
-                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
-                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="문제를 한국어로 생성해 주세요.")),
-                        Button("퀴즈 생성", type="submit"),
-                        cls="container"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-
-# URL 입력 페이지
-@app.get("/url")
-def url_input():
-    return Html(
-        Head(
-            Title("URL 입력 • QuizGen"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header("url 를 입력 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
-            Main(
-                Section(
-                    H2("URL 입력"),
-                    Form(
-                        Label("URL 입력란 (예: https://ko.wikipedia.org/wiki/)", Input(type="url", placeholder="https://")),
-                        Div(
-                            Div(
-                                H3("기본 입력"),
-                                Button("기본 입력"),
-                                Button("내용 확인"),
-                                cls="container"
-                            ),
-                            cls="grid"
-                        ),
-                        Div(
-                            Fieldset(
-                                Legend("언어 선택"),
-                                Label("Korean", Input(type="radio", name="language", value="korean", checked=True)),
-                                Label("English", Input(type="radio", name="language", value="english"))
-                            ),
-                            Fieldset(
-                                Legend("종류 선택"),
-                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
-                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
-                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
-                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
-                            ),
-                            Fieldset(
-                                Legend("난이도"),
-                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
-                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
-                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
-                            ),
-                            Fieldset(
-                                Legend("LLM"),
-                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
-                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
-                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
-                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
-                            ),
-                            cls="grid",
-                            style="margin-top: 30px;"  # 여백 추가
-                        ),
-
-                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
-                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="문제를 한국어로 생성해 주세요.")),
-                        Button("퀴즈 생성", type="submit"),
-                        cls="container"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-
-# 유튜브 링크 입력 페이지
-@app.get("/youtube")
-def youtube_input():
-    return Html(
-        Head(
-            Title("유튜브 링크 입력 • QuizGen"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header("youtube 링크를 입력 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
-            Main(
-                Section(
-                    H2("유튜브 주소 입력 후 원하는 문제를 선택하여 주십시오."),
-                    Form(
-                        Label("유튜브 URL 입력란 (예: https://youtu.be/)", Input(type="url", placeholder="https://youtu.be/")),
-                        Div(
-                            Div(
-                                H3("기본 입력"),
-                                Button("기본 입력"),
-                                Button("내용 확인"),
-                                cls="container"
-                            ),
-                            cls="grid"
-                        ),
-                        Div(
-                            Fieldset(
-                                Legend("언어 선택"),
-                                Label("Korean", Input(type="radio", name="language", value="korean", checked=True)),
-                                Label("English", Input(type="radio", name="language", value="english"))
-                            ),
-                            Fieldset(
-                                Legend("종류 선택"),
-                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
-                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
-                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
-                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
-                            ),
-                            Fieldset(
-                                Legend("난이도"),
-                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
-                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
-                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
-                            ),
-                            Fieldset(
-                                Legend("LLM"),
-                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
-                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
-                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
-                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
-                            ),
-                            cls="grid",
-                            style="margin-top: 30px;"  # 여백 추가
-                        ),
-
-                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
-                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="문제를 한국어로 생성해 주세요.")),
-                        Button("퀴즈 생성", type="submit"),
-                        cls="container"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-
-# 비디오 업로드 페이지
-@app.get("/video")
-def video_upload():
-    return Html(
-        Head(
-            Title("비디오 업로드 • QuizGen"),
-            Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css")
-        ),
-        Body(
-            create_header("video를 업로드 후 원하는 문제 유형을 선택하여 주십시오."),  # 설명 문구 전달
-            Main(
-                Section(
-                    H2("비디오 파일을 업로드해 주세요."),
-                    Form(
-                        Label("Drag and drop file here", Input(type="file", accept="video/*")),      
-                        Div(
-                            Div(
-                                H3("기본 입력"),
-                                Button("기본 입력"),
-                                Button("내용 확인"),
-                                cls="container"
-                            ),
-                            cls="grid"
-                        ),
-                        Div(
-                            Fieldset(
-                                Legend("언어 선택"),
-                                Label("Korean", Input(type="radio", name="language", value="korean", checked=True)),
-                                Label("English", Input(type="radio", name="language", value="english"))
-                            ),
-                            Fieldset(
-                                Legend("종류 선택"),
-                                Label("객관식", Input(type="radio", name="type", value="multiple-choice", checked=True)),
-                                Label("참/거짓", Input(type="radio", name="type", value="true-false")),
-                                Label("주관식", Input(type="radio", name="type", value="short-answer")),
-                                Label("단답형", Input(type="radio", name="type", value="open-ended"))
-                            ),
-                            Fieldset(
-                                Legend("난이도"),
-                                Label("easy", Input(type="radio", name="difficulty", value="easy")),
-                                Label("normal", Input(type="radio", name="difficulty", value="normal", checked=True)),
-                                Label("hard", Input(type="radio", name="difficulty", value="hard"))
-                            ),
-                            Fieldset(
-                                Legend("LLM"),
-                                Label("gpt-4-turbo", Input(type="radio", name="llm", value="gpt-4-turbo")),
-                                Label("gpt-4o-mini", Input(type="radio", name="llm", value="gpt-4o-mini", checked=True)),
-                                Label("gpt-4o", Input(type="radio", name="llm", value="gpt-4o")),
-                                Label("Llama3.1-70b", Input(type="radio", name="llm", value="llama3-70b"))
-                            ),
-                            cls="grid",
-                            style="margin-top: 30px;"  # 여백 추가
-                        ),
-                        Label("갯수 선택", Input(type="number", value="3", min="1", max="10")),
-                        Label("기타 요구 사항을 입력해 주세요", Textarea(placeholder="문제를 한국어로 생성해 주세요.")),
-                        Button("퀴즈 생성", type="submit"),
-                        cls="container"
-                    ),
-                    cls="container"
-                ),
-                cls="container"
-            ),
-            create_footer()
-        )
-    )
-
-
-# 서버 실행
-serve()
+if __name__ == '__main__': uvicorn.run("main:app", host='0.0.0.0', port=int(os.getenv("PORT", default=5000)))
